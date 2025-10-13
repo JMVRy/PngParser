@@ -4,7 +4,7 @@ static class PngParser
 {
     static readonly byte[] PngSignature = [ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a ];
 
-    public static void Parse( byte[] pngData )
+    public static PngData Parse( byte[] pngData )
     {
         if ( pngData.Length < 8 )
         {
@@ -15,5 +15,14 @@ static class PngParser
         {
             throw new Exception( "Not a valid PNG file" );
         }
+
+        return new PngData();
     }
 }
+
+/// <summary>
+/// Represents parsed PNG data.
+/// Currently a placeholder for future implementation, but will soon be filled out with data found in the PNG file.
+/// </summary>
+public class PngData
+{ }

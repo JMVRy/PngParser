@@ -2,15 +2,17 @@
 
 class Program
 {
-    static readonly SimpleLogger Logger = new SimpleLogger();
+    static readonly SimpleLogger Logger = new();
 
-    static void Main( string[] args )
+    static void Main()
     {
-        Logger.Info( "Hello, World!" );
+        Logger.Debug( "PNG Parser started, entering try-catch block" );
 
         try
         {
-            PngParser.PngParser.Parse( [] );
+            Logger.Debug( "Before parsing PNG data" );
+            var pngData = PngParser.PngParser.Parse( [] );
+            Logger.Debug( "PNG data successfully parsed" );
         }
         catch ( Exception ex )
         {

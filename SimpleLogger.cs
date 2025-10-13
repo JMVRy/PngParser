@@ -4,7 +4,7 @@ class SimpleLogger
 {
     public bool IsDebugEnabled { get; set; } = false;
 
-    public void Log( LogLevel level, params object[] messages )
+    public void Log( LogLevel level, params string[] messages )
     {
         string prefix = level switch
         {
@@ -15,6 +15,9 @@ class SimpleLogger
             _ => "[LOG]"
         };
 
+        if ( level == LogLevel.Debug && !IsDebugEnabled )
+            return;
+
         if ( level == LogLevel.Error || level == LogLevel.Warning )
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -23,16 +26,13 @@ class SimpleLogger
             return;
         }
 
-        if ( level == LogLevel.Debug && !IsDebugEnabled )
-            return;
-
         Console.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
     }
 
-    public void Info( string message ) => Log( LogLevel.Info, message );
-    public void Warning( string message ) => Log( LogLevel.Warning, message );
-    public void Error( string message ) => Log( LogLevel.Error, message );
-    public void Debug( string message ) => Log( LogLevel.Debug, message );
+    public void Info( params string[] messages ) => Log( LogLevel.Info, messages );
+    public void Warning( params string[] messages ) => Log( LogLevel.Warning, messages );
+    public void Error( params string[] messages ) => Log( LogLevel.Error, messages );
+    public void Debug( params string[] messages ) => Log( LogLevel.Debug, messages );
 }
 
 public enum LogLevel
