@@ -21,15 +21,20 @@ jobs:
         dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build
+    - name: Build Debug
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Build Release
+      run: dotnet build --no-restore -c Release
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PngParser-artifact-linux-main
-        path: bin/Debug/net9.0/
+        path: |
+          bin/Release/net9.0/PngParser
+          bin/Release/net9.0/PngParser.dll
+          bin/Release/net9.0/PngParser.runtimeconfig.json
 
   windows-build:
     runs-on: windows-latest
@@ -42,12 +47,17 @@ jobs:
         dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build
+    - name: Build Debug
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Build Release
+      run: dotnet build --no-restore -c Release
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PngParser-artifact-windows-main
-        path: bin/Debug/net9.0/
+        path: |
+          bin/Release/net9.0/PngParser.exe
+          bin/Release/net9.0/PngParser.dll
+          bin/Release/net9.0/PngParser.runtimeconfig.json
