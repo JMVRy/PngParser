@@ -1,19 +1,20 @@
-﻿using System;
-using Logging;
+﻿using Logging;
 
 class Program
 {
+    static readonly SimpleLogger Logger = new SimpleLogger();
+
     static void Main( string[] args )
     {
-        Console.WriteLine( "Hello, World!" );
+        Logger.Info( "Hello, World!" );
 
         try
         {
-            PngParser.Parse( [] );
+            PngParser.PngParser.Parse( [] );
         }
         catch ( Exception ex )
         {
-            SimpleLogger.Error( ex.Message );
+            Logger.Error( ex.Message );
         }
     }
 }

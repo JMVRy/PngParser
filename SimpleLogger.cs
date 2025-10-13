@@ -1,19 +1,10 @@
-using System;
-
-
 namespace Logging;
 
-static class SimpleLogger
+class SimpleLogger
 {
-    public enum LogLevel
-    {
-        Debug,
-        Info,
-        Warning,
-        Error
-    }
+    public bool IsDebugEnabled { get; set; } = false;
 
-    public static void Log( LogLevel level, string message )
+    public void Log( LogLevel level, params object[] messages )
     {
         string prefix = level switch
         {
@@ -27,16 +18,27 @@ static class SimpleLogger
         if ( level == LogLevel.Error || level == LogLevel.Warning )
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine( $"{prefix} {message}" );
+            Console.Error.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
             Console.ResetColor();
             return;
         }
 
-        Console.WriteLine( $"{prefix} {message}" );
+        if ( level == LogLevel.Debug && !IsDebugEnabled )
+            return;
+
+        Console.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
     }
 
-    public static void Info( string message ) => Log( LogLevel.Info, message );
-    public static void Warning( string message ) => Log( LogLevel.Warning, message );
-    public static void Error( string message ) => Log( LogLevel.Error, message );
-    public static void Debug( string message ) => Log( LogLevel.Debug, message );
+    public void Info( string message ) => Log( LogLevel.Info, message );
+    public void Warning( string message ) => Log( LogLevel.Warning, message );
+    public void Error( string message ) => Log( LogLevel.Error, message );
+    public void Debug( string message ) => Log( LogLevel.Debug, message );
+}
+
+public enum LogLevel
+{
+    Debug,
+    Info,
+    Warning,
+    Error
 }
