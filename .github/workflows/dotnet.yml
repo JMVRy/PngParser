@@ -58,6 +58,6 @@ jobs:
       with:
         name: PngParser-artifact-windows-main
         path: |
-          bin/Release/net9.0/PngParser
+          bin/Release/net9.0/PngParser.exe
           bin/Release/net9.0/PngParser.dll
           bin/Release/net9.0/PngParser.runtimeconfig.json
