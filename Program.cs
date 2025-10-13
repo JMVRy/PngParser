@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
-partial class Program
+class Program
 {
     static readonly SimpleLogger Logger = new();
 

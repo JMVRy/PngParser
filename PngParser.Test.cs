@@ -1,8 +1,10 @@
 using NUnit.Framework;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Testing;
 
 [TestFixture]
+[ExcludeFromCodeCoverage]
 public class PngParserTest
 {
     [Test]
@@ -11,10 +13,7 @@ public class PngParserTest
         byte[] validPng = [ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a ];
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () =>
-            {
-                PngParser.PngParser.Parse( validPng );
-            } );
+            Assert.DoesNotThrow( () => PngParser.PngParser.Parse( validPng ) );
 
             Assert.That( () => PngParser.PngParser.Parse( validPng ), Is.TypeOf<PngParser.PngData>() );
         } );
@@ -73,6 +72,7 @@ public class PngParserTest
 }
 
 [TestFixture]
+[ExcludeFromCodeCoverage]
 public class SimpleLoggerTest
 {
     private Logging.SimpleLogger _logger;
