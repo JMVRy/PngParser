@@ -1,4 +1,6 @@
+#pragma warning disable IDE0130 // Disable namespace matching folder structure warning for simplicity
 namespace Logging;
+#pragma warning restore IDE0130
 
 class SimpleLogger
 {

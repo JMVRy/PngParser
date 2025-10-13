@@ -1,6 +1,8 @@
 ﻿using Logging;
+using System.Diagnostics.CodeAnalysis;
 
-class Program
+[ExcludeFromCodeCoverage]
+partial class Program
 {
     static readonly SimpleLogger Logger = new();
 

@@ -13,7 +13,7 @@ static class PngParser
 
         if ( !PngSignature.SequenceEqual( pngData.Take( 8 ) ) )
         {
-            throw new Exception( "Not a valid PNG file" );
+            throw new Exception( "Invalid PNG signature" );
         }
 
         return new PngData();
