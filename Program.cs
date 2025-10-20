@@ -9,25 +9,28 @@ class Program
         SimpleLogger.Debug( "PNG Parser started, entering try-catch block" );
 
         string pngPath = "test.png";
-
-        if ( args.Length > 0 && args[ 0 ] == "--debug" )
+        PngParser.PngParser.PngParserOptions options = new PngParser.PngParser.PngParserOptions
         {
-            SimpleLogger.IsDebugEnabled = true;
-            SimpleLogger.Debug( "Debug logging enabled" );
+            StopAtFirstError = false
+        };
 
-            if ( args.Length > 1 )
-                pngPath = args[ 1 ];
-        }
-        else if ( args.Length > 1 && args[ 1 ] == "--debug" )
+        foreach ( var arg in args )
         {
-            pngPath = args[ 0 ];
-
-            SimpleLogger.IsDebugEnabled = true;
-            SimpleLogger.Debug( "Debug logging enabled" );
-        }
-        else if ( args.Length > 0 )
-        {
-            pngPath = args[ 0 ];
+            switch ( arg )
+            {
+                case "--debug":
+                    SimpleLogger.IsDebugEnabled = true;
+                    SimpleLogger.Debug( "Debug logging enabled" );
+                    break;
+                case "--error":
+                    options.StopAtFirstError = true;
+                    SimpleLogger.Debug( "StopAtFirstError option enabled" );
+                    break;
+                default:
+                    pngPath = arg;
+                    SimpleLogger.Debug( $"PNG path set to: {pngPath}" );
+                    break;
+            }
         }
 
         if ( !File.Exists( pngPath ) )
@@ -41,7 +44,7 @@ class Program
             SimpleLogger.Debug( "Before parsing PNG data" );
             try
             {
-                var pngData = PngParser.PngParser.Parse( File.OpenRead( pngPath ) );
+                var pngData = PngParser.PngParser.Parse( File.OpenRead( pngPath ), options );
                 SimpleLogger.Debug( "PNG data successfully parsed" );
 
                 SimpleLogger.Info( $"Parsed PNG Data: Width={pngData.ImageData.GetLength( 0 )}, Height={pngData.ImageData.GetLength( 1 )}, BitDepth={pngData.BitDepth}, ColorType={pngData.ColorType}" );
@@ -51,7 +54,7 @@ class Program
 
                 foreach ( var textChunk in pngData.TextChunks )
                 {
-                    SimpleLogger.Info( $"Text Chunk - Keyword: {textChunk.Keyword}, Text: {textChunk.Text}, Language Tag: {textChunk.LanguageTag}, Translated Keyword: {textChunk.TranslatedKeyword}" );
+                    SimpleLogger.Info( $"Text Chunk - Keyword: \"{textChunk.Keyword}\", Text: \"{textChunk.Text}\", Language Tag: \"{textChunk.LanguageTag}\", Translated Keyword: \"{textChunk.TranslatedKeyword}\"" );
                 }
             }
             catch ( Exception ex )

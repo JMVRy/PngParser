@@ -731,11 +731,22 @@ static class PngParser
             string text;
             if ( compressionFlag == 1 )
             {
-                // Decompress text data
-                using MemoryStream compressedStream = new( textData );
-                using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
-                using StreamReader reader = new( deflateStream, System.Text.Encoding.UTF8 );
-                text = reader.ReadToEnd();
+                try
+                {
+                    // Decompress text data
+                    using MemoryStream compressedStream = new( textData );
+                    using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
+                    using StreamReader reader = new( deflateStream, System.Text.Encoding.UTF8 );
+                    text = reader.ReadToEnd();
+                }
+                catch ( Exception ex )
+                {
+                    string message = "Failed to decompress iTXt chunk text data: " + ex.Message;
+                    SimpleLogger.Error( message );
+                    if ( options.StopAtFirstError )
+                        throw new InvalidPngException( message );
+                    return;
+                }
             }
             else
             {
@@ -788,15 +799,31 @@ static class PngParser
                 byte compressionMethod = chunk.Data[ index ];
                 index++;
 
+                SimpleLogger.Debug( $"zTXt Chunk - Compression Method: {compressionMethod} (ignored)" );
+
                 // Read compressed text
                 byte[] compressedTextData = new byte[ chunk.Length - index ];
                 Array.Copy( chunk.Data, index, compressedTextData, 0, compressedTextData.Length );
 
+                SimpleLogger.Debug( "zTXt Chunk - Compressed text data length:", compressedTextData.Length );
+                SimpleLogger.Debug( "zTXt Chunk - Compressed text data (hex):", BitConverter.ToString( compressedTextData ) );
+
                 // Decompress text data
-                using MemoryStream compressedStream = new( compressedTextData );
-                using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
-                using StreamReader reader = new( deflateStream, System.Text.Encoding.Latin1 );
-                text = reader.ReadToEnd();
+                try
+                {
+                    using MemoryStream compressedStream = new( compressedTextData );
+                    using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
+                    using StreamReader reader = new( deflateStream, System.Text.Encoding.Latin1 );
+                    text = reader.ReadToEnd();
+                }
+                catch ( Exception ex )
+                {
+                    string message = "Failed to decompress zTXt chunk text data: " + ex.Message;
+                    SimpleLogger.Error( message );
+                    if ( options.StopAtFirstError )
+                        throw new InvalidPngException( message );
+                    return;
+                }
             }
 
             SimpleLogger.Debug( $"Text Chunk - Text: {text}" );
