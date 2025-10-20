@@ -48,6 +48,11 @@ jobs:
 
   windows-build:
     runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+      
 
     steps:
     - uses: actions/checkout@v4
