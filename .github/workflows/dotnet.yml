@@ -12,6 +12,10 @@ on:
 jobs:
   linux-build:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
 
     steps:
     - uses: actions/checkout@v4
@@ -28,13 +32,19 @@ jobs:
     - name: Build Release
       run: dotnet build --no-restore -c Release
     - name: Upload Artifact
+      id: upload
       uses: actions/upload-artifact@v4
       with:
-        name: PngParser-artifact-linux-main
+        name: PngParser-artifact-linux-main.zip
         path: |
           bin/Release/net9.0/PngParser
           bin/Release/net9.0/PngParser.dll
           bin/Release/net9.0/PngParser.runtimeconfig.json
+    - name: Attestation
+      uses: actions/attest-build-provenance@v3
+      with:
+        subject-name: PngParser-artifact-linux-main.zip
+        subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
 
   windows-build:
     runs-on: windows-latest
@@ -54,10 +64,16 @@ jobs:
     - name: Build Release
       run: dotnet build --no-restore -c Release
     - name: Upload Artifact
+      id: upload
       uses: actions/upload-artifact@v4
       with:
-        name: PngParser-artifact-windows-main
+        name: PngParser-artifact-windows-main.zip
         path: |
           bin/Release/net9.0/PngParser.exe
           bin/Release/net9.0/PngParser.dll
           bin/Release/net9.0/PngParser.runtimeconfig.json
+    - name: Attestation
+      uses: actions/attest-build-provenance@v3
+      with:
+        subject-name: PngParser-artifact-windows-main.zip
+        subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
