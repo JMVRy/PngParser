@@ -11,11 +11,12 @@ public class PngParserTest
     public void ValidPng()
     {
         byte[] validPng = [ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a ];
+        using MemoryStream memoryStream = new( validPng );
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => PngParser.PngParser.Parse( validPng ) );
+            Assert.DoesNotThrow( () => PngParser.PngParser.Parse( memoryStream ) );
 
-            Assert.That( () => PngParser.PngParser.Parse( validPng ), Is.TypeOf<PngParser.PngData>() );
+            Assert.That( () => PngParser.PngParser.Parse( memoryStream ), Is.TypeOf<PngParser.PngData>() );
         } );
     }
 
@@ -32,7 +33,8 @@ public class PngParserTest
         static void BadCode()
         {
             byte[] invalidPng = [ 0x00, 0x11, 0x22, 0x33 ];
-            PngParser.PngParser.Parse( invalidPng );
+            using MemoryStream memoryStream = new( invalidPng );
+            PngParser.PngParser.Parse( memoryStream );
         }
     }
 
@@ -49,7 +51,8 @@ public class PngParserTest
         static void BadCode()
         {
             byte[] invalidPng = [ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 ];
-            PngParser.PngParser.Parse( invalidPng );
+            using MemoryStream pngStream = new( invalidPng );
+            PngParser.PngParser.Parse( pngStream );
         }
     }
 
@@ -66,7 +69,8 @@ public class PngParserTest
         static void BadCode()
         {
             byte[] emptyPng = [];
-            PngParser.PngParser.Parse( emptyPng );
+            using MemoryStream pngStream = new( emptyPng );
+            PngParser.PngParser.Parse( pngStream );
         }
     }
 }
@@ -75,14 +79,12 @@ public class PngParserTest
 [ExcludeFromCodeCoverage]
 public class SimpleLoggerTest
 {
-    private Logging.SimpleLogger _logger;
     private StringWriter _consoleStdout;
     private StringWriter _consoleStderr;
 
     [SetUp]
     public void Setup()
     {
-        _logger = new Logging.SimpleLogger();
         _consoleStdout = new StringWriter();
         _consoleStderr = new StringWriter();
         Console.SetOut( _consoleStdout );
@@ -101,7 +103,7 @@ public class SimpleLoggerTest
     {
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => _logger.Info( "This is an info message." ) );
+            Assert.DoesNotThrow( () => Logging.SimpleLogger.Info( "This is an info message." ) );
             Assert.That( _consoleStdout.ToString(), Does.Contain( "[INFO] This is an info message." ) );
             Assert.That( _consoleStderr.ToString(), Is.Empty );
         } );
@@ -113,7 +115,7 @@ public class SimpleLoggerTest
     {
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => _logger.Warning( "This is a warning message." ) );
+            Assert.DoesNotThrow( () => Logging.SimpleLogger.Warning( "This is a warning message." ) );
             Assert.That( _consoleStderr.ToString(), Does.Contain( "[WARNING] This is a warning message." ) );
             Assert.That( _consoleStdout.ToString(), Is.Empty );
         } );
@@ -125,7 +127,7 @@ public class SimpleLoggerTest
     {
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => _logger.Error( "This is an error message." ) );
+            Assert.DoesNotThrow( () => Logging.SimpleLogger.Error( "This is an error message." ) );
             Assert.That( _consoleStderr.ToString(), Does.Contain( "[ERROR] This is an error message." ) );
             Assert.That( _consoleStdout.ToString(), Is.Empty );
         } );
@@ -135,11 +137,11 @@ public class SimpleLoggerTest
     [Test]
     public void LogDebugMessageWhenEnabled()
     {
-        _logger.IsDebugEnabled = true;
+        Logging.SimpleLogger.IsDebugEnabled = true;
 
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => _logger.Debug( "This is a debug message." ) );
+            Assert.DoesNotThrow( () => Logging.SimpleLogger.Debug( "This is a debug message." ) );
             Assert.That( _consoleStdout.ToString(), Does.Contain( "[DEBUG] This is a debug message." ) );
             Assert.That( _consoleStderr.ToString(), Is.Empty );
         } );
@@ -151,8 +153,8 @@ public class SimpleLoggerTest
     {
         Assert.Multiple( () =>
         {
-            Assert.That( _logger.IsDebugEnabled, Is.False );
-            Assert.DoesNotThrow( () => _logger.Debug( "This debug message should not appear." ) );
+            Assert.That( Logging.SimpleLogger.IsDebugEnabled, Is.False );
+            Assert.DoesNotThrow( () => Logging.SimpleLogger.Debug( "This debug message should not appear." ) );
             Assert.That( _consoleStdout.ToString(), Is.Empty );
             Assert.That( _consoleStderr.ToString(), Is.Empty );
         } );

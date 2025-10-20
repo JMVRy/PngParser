@@ -6,7 +6,7 @@ static class SimpleLogger
 {
     public static bool IsDebugEnabled { get; set; } = false;
 
-    public static void Log( LogLevel level, params string[] messages )
+    public static void Log( LogLevel level, params object[] messages )
     {
         string prefix = level switch
         {
@@ -23,18 +23,18 @@ static class SimpleLogger
         if ( level == LogLevel.Error || level == LogLevel.Warning )
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
+            Console.Error.WriteLine( $"{prefix} {string.Join( " ", messages.Select( m => m.ToString() ) )}" );
             Console.ResetColor();
             return;
         }
 
-        Console.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
+        Console.WriteLine( $"{prefix} {string.Join( " ", messages.Select( m => m.ToString() ) )}" );
     }
 
-    public static void Info( params string[] messages ) => Log( LogLevel.Info, messages );
-    public static void Warning( params string[] messages ) => Log( LogLevel.Warning, messages );
-    public static void Error( params string[] messages ) => Log( LogLevel.Error, messages );
-    public static void Debug( params string[] messages ) => Log( LogLevel.Debug, messages );
+    public static void Info( params object[] messages ) => Log( LogLevel.Info, messages );
+    public static void Warning( params object[] messages ) => Log( LogLevel.Warning, messages );
+    public static void Error( params object[] messages ) => Log( LogLevel.Error, messages );
+    public static void Debug( params object[] messages ) => Log( LogLevel.Debug, messages );
 }
 
 public enum LogLevel
