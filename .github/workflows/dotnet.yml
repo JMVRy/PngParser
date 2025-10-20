@@ -32,6 +32,7 @@ jobs:
     - name: Build Release
       run: dotnet build --no-restore -c Release
     - name: Upload Artifact
+      id: upload
       uses: actions/upload-artifact@v4
       with:
         name: PngParser-artifact-linux-main.zip
@@ -63,6 +64,7 @@ jobs:
     - name: Build Release
       run: dotnet build --no-restore -c Release
     - name: Upload Artifact
+      id: upload
       uses: actions/upload-artifact@v4
       with:
         name: PngParser-artifact-windows-main.zip
