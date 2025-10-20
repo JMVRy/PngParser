@@ -8,7 +8,27 @@ class Program
     {
         SimpleLogger.Debug( "PNG Parser started, entering try-catch block" );
 
-        string pngPath = args.Length > 0 ? args[ 0 ] : "test.png";
+        string pngPath = "test.png";
+
+        if ( args.Length > 0 && args[ 0 ] == "--debug" )
+        {
+            SimpleLogger.IsDebugEnabled = true;
+            SimpleLogger.Debug( "Debug logging enabled" );
+
+            if ( args.Length > 1 )
+                pngPath = args[ 1 ];
+        }
+        else if ( args.Length > 1 && args[ 1 ] == "--debug" )
+        {
+            pngPath = args[ 0 ];
+
+            SimpleLogger.IsDebugEnabled = true;
+            SimpleLogger.Debug( "Debug logging enabled" );
+        }
+        else if ( args.Length > 0 )
+        {
+            pngPath = args[ 0 ];
+        }
 
         if ( !File.Exists( pngPath ) )
         {
