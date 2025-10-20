@@ -11,7 +11,7 @@ class Program
         byte[] exampleData = [ 0x00, 0x11, 0x22, 0x33 ]; // Invalid PNG data for testing
         PngParser.PngParser.PngParserOptions options = new PngParser.PngParser.PngParserOptions
         {
-            StopAtFirstError = true
+            StopAtFirstError = true,
         };
 
         try
