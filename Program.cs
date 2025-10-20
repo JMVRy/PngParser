@@ -4,24 +4,24 @@ using System.Diagnostics.CodeAnalysis;
 [ExcludeFromCodeCoverage]
 class Program
 {
-    static void Main()
+    static void Main( string[] args )
     {
         SimpleLogger.Debug( "PNG Parser started, entering try-catch block" );
 
-        byte[] exampleData = [ 0x00, 0x11, 0x22, 0x33 ]; // Invalid PNG data for testing
-        PngParser.PngParser.PngParserOptions options = new PngParser.PngParser.PngParserOptions
-        {
-            StopAtFirstError = true,
-        };
+        string pngPath = args.Length > 0 ? args[ 0 ] : "test.png";
 
         try
         {
             SimpleLogger.Debug( "Before parsing PNG data" );
             try
             {
-                using MemoryStream memoryStream = new( exampleData );
-                var pngData = PngParser.PngParser.Parse( memoryStream, options );
+                var pngData = PngParser.PngParser.Parse( File.OpenRead( "test.png" ) );
                 SimpleLogger.Debug( "PNG data successfully parsed" );
+
+                SimpleLogger.Info( $"Parsed PNG Data: Width={pngData.ImageData.GetLength( 0 )}, Height={pngData.ImageData.GetLength( 1 )}, BitDepth={pngData.BitDepth}, ColorType={pngData.ColorType}" );
+                SimpleLogger.Info( $"Palette Entries: {( pngData.Palette != null ? pngData.Palette.Length.ToString() : "No Palette" )}" );
+                SimpleLogger.Info( $"Number of Text Chunks: {pngData.TextChunks.Length}" );
+                SimpleLogger.Info( $"Last modified: {pngData.LastModified.ToString() ?? "N/A"}" );
 
                 foreach ( var textChunk in pngData.TextChunks )
                 {

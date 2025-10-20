@@ -423,11 +423,25 @@ static class PngParser
         pngData.ImageData = new Color[ width, height ];
         pngData.BitDepth = bitDepth;
         pngData.ColorType = colorType;
-        pngData.CompressionMethod = compressionMethod;
-        pngData.FilterMethod = filterMethod;
         pngData.InterlaceMethod = interlaceMethod;
 
-        PngParser.EnsureIHDRValid( width, height, bitDepth, colorType, compressionMethod, filterMethod, interlaceMethod, options );
+        if ( compressionMethod != 0 )
+        {
+            string message = $"Invalid compression method {compressionMethod}. Only method 0 (deflate/inflate) is supported.";
+            SimpleLogger.Error( message );
+            if ( options.StopAtFirstError )
+                throw new InvalidPngHeaderException( message );
+        }
+
+        if ( filterMethod != 0 )
+        {
+            string message = $"Invalid filter method {filterMethod}. Only method 0 (adaptive filtering with five basic filter types) is supported.";
+            SimpleLogger.Error( message );
+            if ( options.StopAtFirstError )
+                throw new InvalidPngHeaderException( message );
+        }
+
+        PngParser.EnsureIHDRValid( width, height, bitDepth, colorType, interlaceMethod, options );
     }
 
     /// <summary>
@@ -442,7 +456,7 @@ static class PngParser
     /// <param name="interlaceMethod">The interlace method used.</param>
     /// <param name="options">The parser options.</param>
     /// <exception cref="InvalidPngHeaderException" />
-    private static void EnsureIHDRValid( uint width, uint height, byte bitDepth, byte colorType, byte compressionMethod, byte filterMethod, byte interlaceMethod, PngParserOptions options )
+    private static void EnsureIHDRValid( uint width, uint height, byte bitDepth, byte colorType, byte interlaceMethod, PngParserOptions options )
     {
         const uint MaxPngDimension = 1u << 31; // 2^31
         if ( height == 0 || width == 0 )
@@ -468,22 +482,6 @@ static class PngParser
         } */ // NOTE: This check is to prevent memory issues (4 exabytes assuming 1 byte per pixel and max int size), but I might be able to handle it later down the line. I'd rather get a memory exception right now anyways.
 
         PngParser.EnsureColorTypeAndBitDepthValid( colorType, bitDepth, options );
-
-        if ( compressionMethod != 0 )
-        {
-            string message = $"Invalid compression method {compressionMethod}. Only method 0 (deflate/inflate) is supported.";
-            SimpleLogger.Error( message );
-            if ( options.StopAtFirstError )
-                throw new InvalidPngHeaderException( message );
-        }
-
-        if ( filterMethod != 0 )
-        {
-            string message = $"Invalid filter method {filterMethod}. Only method 0 (adaptive filtering with five basic filter types) is supported.";
-            SimpleLogger.Error( message );
-            if ( options.StopAtFirstError )
-                throw new InvalidPngHeaderException( message );
-        }
 
         if ( interlaceMethod != 0 && interlaceMethod != 1 )
         {
@@ -977,8 +975,6 @@ public class PngData
     public Color[,] ImageData { get; set; } = new Color[ 0, 0 ]; // [ width, height ] (see: (x, y) coordinate system)
     public byte BitDepth { get; set; }
     public byte ColorType { get; set; }
-    public byte CompressionMethod { get; set; }
-    public byte FilterMethod { get; set; }
     public byte InterlaceMethod { get; set; }
     public Color[]? Palette { get; set; }
     public TextMetadata[] TextChunks { get; set; } = [];
