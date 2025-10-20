@@ -10,12 +10,18 @@ class Program
 
         string pngPath = args.Length > 0 ? args[ 0 ] : "test.png";
 
+        if ( !File.Exists( pngPath ) )
+        {
+            SimpleLogger.Error( $"File not found: {pngPath}" );
+            return;
+        }
+
         try
         {
             SimpleLogger.Debug( "Before parsing PNG data" );
             try
             {
-                var pngData = PngParser.PngParser.Parse( File.OpenRead( "test.png" ) );
+                var pngData = PngParser.PngParser.Parse( File.OpenRead( pngPath ) );
                 SimpleLogger.Debug( "PNG data successfully parsed" );
 
                 SimpleLogger.Info( $"Parsed PNG Data: Width={pngData.ImageData.GetLength( 0 )}, Height={pngData.ImageData.GetLength( 1 )}, BitDepth={pngData.BitDepth}, ColorType={pngData.ColorType}" );
