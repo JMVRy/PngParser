@@ -1,4 +1,5 @@
 using Logging;
+using System.IO.Compression;
 
 namespace PngParser;
 
@@ -50,12 +51,17 @@ static class PngParser
         // Exceptions that indicate we cannot continue parsing
         catch ( ArgumentOutOfRangeException outOfRange )
         {
-            SimpleLogger.Error( "PNG stream ended prematurely while verifying header: ", outOfRange.Message );
+            SimpleLogger.Error( "PNG stream ended prematurely while verifying header:", outOfRange.Message );
             throw;
         }
         catch ( ArgumentNullException nullEx )
         {
-            SimpleLogger.Error( "PNG stream was null while verifying header: ", nullEx.Message );
+            SimpleLogger.Error( "PNG stream was null while verifying header:", nullEx.Message );
+            throw;
+        }
+        catch ( EndOfStreamException endOfStream )
+        {
+            SimpleLogger.Error( "PNG stream ended before header could be fully read:", endOfStream.Message );
             throw;
         }
         // Exceptions that indicate possible invalid PNG data
@@ -67,18 +73,21 @@ static class PngParser
                 throw;
             }
 
-            SimpleLogger.Error( "Invalid PNG header: ", invalidHeader.Message );
+            SimpleLogger.Error( "Invalid PNG header:", invalidHeader.Message );
         }
         // Catch-all for any other exceptions
         catch ( Exception ex )
         {
+            SimpleLogger.Error( "Unexpected error while verifying PNG header:", ex.Message );
+            SimpleLogger.Error( "Error type:", ex.GetType().ToString() );
+
             if ( options.StopAtFirstError )
             {
                 SimpleLogger.Debug( "Entered with Exception, rethrowing due to StopAtFirstError." );
                 throw;
             }
 
-            SimpleLogger.Error( "Error verifying PNG header: ", ex.Message );
+            SimpleLogger.Error( "Error verifying PNG header:", ex.Message );
         }
 
         SimpleLogger.Debug( "Reading PNG chunks." );
@@ -87,12 +96,7 @@ static class PngParser
 
         if ( chunks.Length < 1 )
         {
-            SimpleLogger.Error( "No PNG chunks found in the provided stream." );
-
-            if ( options.StopAtFirstError )
-                throw new InvalidPngException( "No PNG chunks found." );
-
-            SimpleLogger.Debug( "Returning empty PNG data due to no chunks found." );
+            SimpleLogger.Warning( "No PNG chunks found in the provided stream." );
             return new PngData();
         }
 
@@ -324,6 +328,20 @@ static class PngParser
 
                     break;
 
+                case PngChunkType.tEXt:
+                case PngChunkType.zTXt:
+                case PngChunkType.iTXt:
+                    // Process tEXt chunk
+                    SimpleLogger.Debug( "Processing tEXt chunk." );
+                    PngParser.ParseTextChunk( chunk, ref pngData, options );
+                    break;
+
+                case PngChunkType.tIME:
+                    // Process tIME chunk
+                    SimpleLogger.Debug( "Processing tIME chunk." );
+                    PngParser.ParseTimeChunk( chunk, ref pngData, options );
+                    break;
+
                 default:
                     SimpleLogger.Info( "Unknown chunk type encountered:", chunk.Type );
                     if ( ( chunk.Type & 0x20000000 ) == 0 ) // Critical chunk
@@ -370,7 +388,7 @@ static class PngParser
         // IHDR chunk must be 13 bytes long
         if ( chunk.Length != 13 )
         {
-            SimpleLogger.Error( "IHDR chunk has invalid length: ", chunk.Length.ToString() );
+            SimpleLogger.Error( "IHDR chunk has invalid length:", chunk.Length.ToString() );
 
             if ( options.StopAtFirstError )
                 throw new InvalidPngHeaderException( "IHDR chunk has invalid length." );
@@ -638,6 +656,183 @@ static class PngParser
         pngData.Palette = palette;
     }
 
+    private static void ParseTextChunk( PngChunk chunk, ref PngData pngData, PngParserOptions options )
+    {
+        SimpleLogger.Debug( $"Parsing text chunk of type {chunk.Type}." );
+
+        if ( chunk.Type == PngChunkType.iTXt )
+        {
+            // Handle iTXt chunk (international text)
+            // iTXt chunk format:
+            // - Keyword (null-terminated)
+            // - Compression flag (1 byte)
+            // - Compression method (1 byte)
+            // - Language tag (null-terminated)
+            // - Translated keyword (null-terminated)
+            // - Text (remaining bytes, possibly compressed)
+
+            int index = 0;
+            // Read keyword
+            int firstNull = Array.IndexOf( chunk.Data, ( byte ) 0, index );
+            if ( firstNull == -1 )
+            {
+                string message = "Invalid iTXt chunk: missing null terminator for keyword.";
+                SimpleLogger.Error( message );
+                if ( options.StopAtFirstError )
+                    throw new InvalidPngException( message );
+                return;
+            }
+
+            string keyword = System.Text.Encoding.UTF8.GetString( chunk.Data, index, firstNull - index );
+            index = firstNull + 1;
+            SimpleLogger.Debug( $"iTXt Chunk - Keyword: {keyword}" );
+
+            // Read compression flag
+            byte compressionFlag = chunk.Data[ index ];
+            index++;
+            SimpleLogger.Debug( $"iTXt Chunk - Compression Flag: {compressionFlag}" );
+
+            // Read compression method
+            byte compressionMethod = chunk.Data[ index ];
+            index++;
+            SimpleLogger.Debug( $"iTXt Chunk - Compression Method: {compressionMethod} (ignored)" );
+
+            // Read language tag
+            firstNull = Array.IndexOf( chunk.Data, ( byte ) 0, index );
+            if ( firstNull == -1 )
+            {
+                string message = "Invalid iTXt chunk: missing null terminator for language tag.";
+                SimpleLogger.Error( message );
+                if ( options.StopAtFirstError )
+                    throw new InvalidPngException( message );
+                return;
+            }
+
+            string languageTag = System.Text.Encoding.UTF8.GetString( chunk.Data, index, firstNull - index );
+            index = firstNull + 1;
+            SimpleLogger.Debug( $"iTXt Chunk - Language Tag: {languageTag}" );
+
+            // Read translated keyword
+            firstNull = Array.IndexOf( chunk.Data, ( byte ) 0, index );
+            if ( firstNull == -1 )
+            {
+                string message = "Invalid iTXt chunk: missing null terminator for translated keyword.";
+                SimpleLogger.Error( message );
+                if ( options.StopAtFirstError )
+                    throw new InvalidPngException( message );
+                return;
+            }
+
+            string translatedKeyword = System.Text.Encoding.UTF8.GetString( chunk.Data, index, firstNull - index );
+            index = firstNull + 1;
+            SimpleLogger.Debug( $"iTXt Chunk - Translated Keyword: {translatedKeyword}" );
+
+            // Read text
+            byte[] textData = new byte[ chunk.Length - index ];
+            Array.Copy( chunk.Data, index, textData, 0, textData.Length );
+            string text;
+            if ( compressionFlag == 1 )
+            {
+                // Decompress text data
+                using MemoryStream compressedStream = new( textData );
+                using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
+                using StreamReader reader = new( deflateStream, System.Text.Encoding.UTF8 );
+                text = reader.ReadToEnd();
+            }
+            else
+            {
+                text = System.Text.Encoding.UTF8.GetString( textData );
+            }
+
+            SimpleLogger.Debug( $"iTXt Chunk - Text: {text}" );
+
+            pngData.TextChunks = [ .. pngData.TextChunks, ( new TextMetadata( keyword, text, languageTag, translatedKeyword ) ) ];
+        }
+        else if ( chunk.Type == PngChunkType.tEXt || chunk.Type == PngChunkType.zTXt )
+        {
+            // Handle tEXt and zTXt chunks
+            // tEXt chunk format:
+            // - Keyword (null-terminated)
+            // - Text (remaining bytes)
+            // zTXt chunk format:
+            // - Keyword (null-terminated)
+            // - Compression method (1 byte)
+            // - Compressed text (remaining bytes)
+
+            int index = 0;
+            // Read keyword
+            int firstNull = Array.IndexOf( chunk.Data, ( byte ) 0, index );
+            if ( firstNull == -1 )
+            {
+                string message = "Invalid text chunk: missing null terminator for keyword.";
+                SimpleLogger.Error( message );
+                if ( options.StopAtFirstError )
+                    throw new InvalidPngException( message );
+                return;
+            }
+
+            string keyword = System.Text.Encoding.Latin1.GetString( chunk.Data, index, firstNull - index );
+            index = firstNull + 1;
+            SimpleLogger.Debug( $"Text Chunk - Keyword: {keyword}" );
+
+            string text;
+            if ( chunk.Type == PngChunkType.tEXt )
+            {
+                // Read text
+                byte[] textData = new byte[ chunk.Length - index ];
+                Array.Copy( chunk.Data, index, textData, 0, textData.Length );
+                text = System.Text.Encoding.Latin1.GetString( textData );
+            }
+            else
+            {
+                // zTXt chunk
+                // Read compression method
+                byte compressionMethod = chunk.Data[ index ];
+                index++;
+
+                // Read compressed text
+                byte[] compressedTextData = new byte[ chunk.Length - index ];
+                Array.Copy( chunk.Data, index, compressedTextData, 0, compressedTextData.Length );
+
+                // Decompress text data
+                using MemoryStream compressedStream = new( compressedTextData );
+                using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
+                using StreamReader reader = new( deflateStream, System.Text.Encoding.Latin1 );
+                text = reader.ReadToEnd();
+            }
+
+            SimpleLogger.Debug( $"Text Chunk - Text: {text}" );
+
+            pngData.TextChunks = [ .. pngData.TextChunks, ( new TextMetadata( keyword, text ) ) ];
+        }
+    }
+
+    private static void ParseTimeChunk( PngChunk chunk, ref PngData pngData, PngParserOptions options )
+    {
+        if ( chunk.Data.Length != 7 )
+        {
+            string message = "Invalid tIME chunk length. Must be 7 bytes.";
+            SimpleLogger.Error( message );
+            if ( options.StopAtFirstError )
+                throw new InvalidPngException( message );
+
+            if ( chunk.Data.Length < 7 )
+                return; // Can't parse incomplete time data
+        }
+
+        pngData.LastModified = new DateTime(
+            year: ( ushort ) ( ( chunk.Data[ 0 ] << 8 ) | chunk.Data[ 1 ] ),
+            month: chunk.Data[ 2 ],
+            day: chunk.Data[ 3 ],
+            hour: chunk.Data[ 4 ],
+            minute: chunk.Data[ 5 ],
+            second: chunk.Data[ 6 ],
+            kind: DateTimeKind.Utc
+        );
+
+        SimpleLogger.Debug( $"tIME Chunk - Last Modified: {pngData.LastModified} (UTC)" );
+    }
+
     private static void VerifyPngData( PngData? pngData, PngParserOptions options )
     {
         if ( pngData is null )
@@ -683,7 +878,7 @@ static class PngParser
         }
     }
 
-    /// <summary>
+    /// <summary>ArgumentOutOfRangeException
     /// Updates the CRC value for the given data.
     /// </summary>
     /// <param name="crc">The existing CRC value.</param>
@@ -754,19 +949,19 @@ static class PngParser
 
         public bool StopAtIEND { get; set; } = true; // Stop parsing when IEND chunk is found
     }
-
-    public class InvalidPngException( string message ) : Exception( message )
-    { }
-
-    public class CrcMismatchException( string message ) : InvalidPngException( message )
-    { }
-
-    public class InvalidPngSignatureException( string message ) : InvalidPngException( message )
-    { }
-
-    public class InvalidPngHeaderException( string message ) : InvalidPngException( message )
-    { }
 }
+
+public class InvalidPngException( string message ) : Exception( message )
+{ }
+
+public class CrcMismatchException( string message ) : InvalidPngException( message )
+{ }
+
+public class InvalidPngSignatureException( string message ) : InvalidPngException( message )
+{ }
+
+public class InvalidPngHeaderException( string message ) : InvalidPngException( message )
+{ }
 
 /// <summary>
 /// Represents parsed PNG data.
@@ -786,8 +981,11 @@ public class PngData
     public byte FilterMethod { get; set; }
     public byte InterlaceMethod { get; set; }
     public Color[]? Palette { get; set; }
+    public TextMetadata[] TextChunks { get; set; } = [];
+    public DateTime LastModified { get; set; } = DateTime.MinValue;
 
     public bool ParsedPalette => Palette != null && Palette.Length > 0;
+    public bool ParsedImageData => ImageData != null && ImageData.Length > 0;
 }
 
 public struct Color( ushort r, ushort g, ushort b, ushort a = 255 )
@@ -796,6 +994,14 @@ public struct Color( ushort r, ushort g, ushort b, ushort a = 255 )
     public ushort G = g;
     public ushort B = b;
     public ushort A = a;
+}
+
+public struct TextMetadata( string keyword, string text, string languageTag = "", string translatedKeyword = "" )
+{
+    public string Keyword = keyword;
+    public string Text = text;
+    public string? LanguageTag = languageTag;
+    public string? TranslatedKeyword = translatedKeyword;
 }
 
 /// <summary>
@@ -884,4 +1090,18 @@ public readonly struct PngChunkType
     public const uint PLTE = 0x504C5445; // "PLTE"
     public const uint IDAT = 0x49444154; // "IDAT"
     public const uint IEND = 0x49454E44; // "IEND"
+    public const uint tRNS = 0x74524E53; // "tRNS"
+    public const uint gAMA = 0x67414D41; // "gAMA"
+    public const uint cHRM = 0x6348524D; // "cHRM"
+    public const uint sRGB = 0x73524742; // "sRGB"
+    public const uint iCCP = 0x69434350; // "iCCP"
+    public const uint iTXt = 0x69545874; // "iTXt"
+    public const uint tEXt = 0x74455874; // "tEXt"
+    public const uint zTXt = 0x7A545874; // "zTXt"
+    public const uint bKGD = 0x624B4744; // "bKGD"
+    public const uint pHYs = 0x70485973; // "pHYs"
+    public const uint sBIT = 0x73424954; // "sBIT"
+    public const uint sPLT = 0x73504C54; // "sPLT"
+    public const uint hIST = 0x68495354; // "hIST"
+    public const uint tIME = 0x74494D45; // "tIME"
 }

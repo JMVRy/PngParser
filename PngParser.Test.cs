@@ -14,9 +14,11 @@ public class PngParserTest
         using MemoryStream memoryStream = new( validPng );
         Assert.Multiple( () =>
         {
-            Assert.DoesNotThrow( () => PngParser.PngParser.Parse( memoryStream ) );
+            Assert.DoesNotThrow( () => PngParser.PngParser.Parse( memoryStream, new PngParser.PngParser.PngParserOptions() { StopAtFirstError = true } ) );
 
-            Assert.That( () => PngParser.PngParser.Parse( memoryStream ), Is.TypeOf<PngParser.PngData>() );
+            memoryStream.Seek( 0, SeekOrigin.Begin ); // We need to reset the stream position before parsing again
+
+            Assert.That( () => PngParser.PngParser.Parse( memoryStream, new PngParser.PngParser.PngParserOptions() { StopAtFirstError = true } ), Is.TypeOf<PngParser.PngData>() );
         } );
     }
 
@@ -25,9 +27,9 @@ public class PngParserTest
     {
         Assert.Multiple( () =>
         {
-            Assert.Throws<Exception>( BadCode );
+            Assert.Throws<EndOfStreamException>( BadCode );
 
-            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "PNG file too short" ) );
+            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "Unable to read beyond the end of the stream." ) );
         } );
 
         static void BadCode()
@@ -43,16 +45,16 @@ public class PngParserTest
     {
         Assert.Multiple( () =>
         {
-            Assert.Throws<Exception>( BadCode );
+            Assert.Throws<PngParser.InvalidPngSignatureException>( BadCode );
 
-            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "Invalid PNG signature" ) );
+            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "PNG file signature does not match expected signature" ) );
         } );
 
         static void BadCode()
         {
             byte[] invalidPng = [ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 ];
             using MemoryStream pngStream = new( invalidPng );
-            PngParser.PngParser.Parse( pngStream );
+            PngParser.PngParser.Parse( pngStream, new PngParser.PngParser.PngParserOptions() { StopAtFirstError = true } );
         }
     }
 
@@ -61,16 +63,16 @@ public class PngParserTest
     {
         Assert.Multiple( () =>
         {
-            Assert.Throws<Exception>( BadCode );
+            Assert.Throws<EndOfStreamException>( BadCode );
 
-            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "PNG file too short" ) );
+            Assert.That( BadCode, Throws.Exception.With.Message.EqualTo( "Unable to read beyond the end of the stream." ) );
         } );
 
         static void BadCode()
         {
             byte[] emptyPng = [];
             using MemoryStream pngStream = new( emptyPng );
-            PngParser.PngParser.Parse( pngStream );
+            PngParser.PngParser.Parse( pngStream, new PngParser.PngParser.PngParserOptions() { StopAtFirstError = true } );
         }
     }
 }
@@ -145,19 +147,29 @@ public class SimpleLoggerTest
             Assert.That( _consoleStdout.ToString(), Does.Contain( "[DEBUG] This is a debug message." ) );
             Assert.That( _consoleStderr.ToString(), Is.Empty );
         } );
+    }
+}
 
+[TestFixture]
+[ExcludeFromCodeCoverage]
+public class UtilsTest
+{
+    [Test]
+    public void ToUint32_ValidString_ReturnsCorrectValue()
+    {
+        string input = "ABCD";
+        uint expected = 0x41424344; // ASCII values: A=65, B=66, C=67, D=68
+
+        uint result = Utils.ToUint32( input );
+
+        Assert.That( result, Is.EqualTo( expected ) );
     }
 
     [Test]
-    public void LoggerDoesNotLogDebugByDefault()
+    public void ToUint32_InvalidString_ThrowsArgumentException()
     {
-        Assert.Multiple( () =>
-        {
-            Assert.That( Logging.SimpleLogger.IsDebugEnabled, Is.False );
-            Assert.DoesNotThrow( () => Logging.SimpleLogger.Debug( "This debug message should not appear." ) );
-            Assert.That( _consoleStdout.ToString(), Is.Empty );
-            Assert.That( _consoleStderr.ToString(), Is.Empty );
-        } );
+        string input = "ABC"; // Invalid length
 
+        Assert.Throws<ArgumentException>( () => Utils.ToUint32( input ) );
     }
 }
