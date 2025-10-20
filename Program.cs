@@ -4,21 +4,26 @@ using System.Diagnostics.CodeAnalysis;
 [ExcludeFromCodeCoverage]
 class Program
 {
-    static readonly SimpleLogger Logger = new();
-
     static void Main()
     {
-        Logger.Debug( "PNG Parser started, entering try-catch block" );
+        SimpleLogger.Debug( "PNG Parser started, entering try-catch block" );
 
         try
         {
-            Logger.Debug( "Before parsing PNG data" );
-            var pngData = PngParser.PngParser.Parse( [] );
-            Logger.Debug( "PNG data successfully parsed" );
+            SimpleLogger.Debug( "Before parsing PNG data" );
+            try
+            {
+                var pngData = PngParser.PngParser.Parse( File.OpenRead( "test.png" ) );
+                SimpleLogger.Debug( "PNG data successfully parsed" );
+            }
+            catch ( Exception ex )
+            {
+                SimpleLogger.Error( "Failed to parse PNG data: ", ex.Message );
+            }
         }
         catch ( Exception ex )
         {
-            Logger.Error( ex.Message );
+            SimpleLogger.Error( ex.Message );
         }
     }
 }

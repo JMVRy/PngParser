@@ -2,11 +2,11 @@
 namespace Logging;
 #pragma warning restore IDE0130
 
-class SimpleLogger
+static class SimpleLogger
 {
-    public bool IsDebugEnabled { get; set; } = false;
+    public static bool IsDebugEnabled { get; set; } = false;
 
-    public void Log( LogLevel level, params string[] messages )
+    public static void Log( LogLevel level, params string[] messages )
     {
         string prefix = level switch
         {
@@ -31,10 +31,10 @@ class SimpleLogger
         Console.WriteLine( $"{prefix} {string.Join( " ", messages )}" );
     }
 
-    public void Info( params string[] messages ) => Log( LogLevel.Info, messages );
-    public void Warning( params string[] messages ) => Log( LogLevel.Warning, messages );
-    public void Error( params string[] messages ) => Log( LogLevel.Error, messages );
-    public void Debug( params string[] messages ) => Log( LogLevel.Debug, messages );
+    public static void Info( params string[] messages ) => Log( LogLevel.Info, messages );
+    public static void Warning( params string[] messages ) => Log( LogLevel.Warning, messages );
+    public static void Error( params string[] messages ) => Log( LogLevel.Error, messages );
+    public static void Debug( params string[] messages ) => Log( LogLevel.Debug, messages );
 }
 
 public enum LogLevel
