@@ -173,3 +173,47 @@ public class UtilsTest
         Assert.Throws<ArgumentException>( () => Utils.ToUint32( input ) );
     }
 }
+
+[TestFixture]
+[ExcludeFromCodeCoverage]
+public class PngChunkTypeTests
+{
+    [Test]
+    public void AllPublicUintConstants_HaveMatchingAsciiNames()
+    {
+        var fields = typeof( PngParser.PngChunkType ).GetFields( System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly );
+        foreach ( var f in fields )
+        {
+            if ( f.FieldType != typeof( uint ) )
+                continue;
+
+            // Skip any fields that aren't valid 4-char identifiers
+            string name = f.Name;
+            Assert.That( name, Has.Length.EqualTo( 4 ), () => $"Field '{name}' must be 4 characters long." );
+
+            uint value = Convert.ToUInt32( f.GetRawConstantValue() );
+            uint expected = Utils.ToUint32( name );
+
+            Assert.That( value, Is.EqualTo( expected ), $"PngChunkType.{name} value mismatch: 0x{value:X8} != 0x{expected:X8}" );
+        }
+    }
+
+    [Test]
+    public void NoDuplicateChunkValues()
+    {
+        var fields = typeof( PngParser.PngChunkType ).GetFields( System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly );
+        var values = new Dictionary<uint, string>();
+        foreach ( var f in fields )
+        {
+            if ( f.FieldType != typeof( uint ) )
+                continue;
+            uint value = Convert.ToUInt32( f.GetRawConstantValue() );
+            string name = f.Name;
+            if ( values.TryGetValue( value, out var existing ) )
+            {
+                Assert.Fail( $"Duplicate PngChunkType value 0x{value:X8} used by '{existing}' and '{name}'" );
+            }
+            values[ value ] = name;
+        }
+    }
+}

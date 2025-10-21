@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Reflection;
 using Logging;
 using System.IO.Compression;
 
@@ -346,6 +349,41 @@ static class PngParser
                     // Process gAMA chunk
                     SimpleLogger.Debug( "Processing gAMA chunk." );
                     PngParser.ParseGamaChunk( chunk, ref pngData, options );
+                    break;
+
+                // Add explicit not-implemented handlers for remaining known chunk constants
+                case PngChunkType.oFFs:
+                case PngChunkType.pCAL:
+                case PngChunkType.sCAL:
+                case PngChunkType.sTER:
+                case PngChunkType.vpAg:
+                case PngChunkType.eXIf:
+                case PngChunkType.cICP:
+                case PngChunkType.mDCV:
+                case PngChunkType.cLLI:
+                case PngChunkType.dSIG:
+                case PngChunkType.acTL:
+                case PngChunkType.fcTL:
+                case PngChunkType.fdAT:
+                case PngChunkType.gIFg:
+                case PngChunkType.gIFx:
+                case PngChunkType.gIFt:
+                case PngChunkType.fRAc:
+                    // Known chunk types that are not yet implemented. Throw to highlight missing implementation.
+                    throw new NotImplementedException( $"Processing for chunk type '{chunk.Type}' is not implemented." );
+
+                case PngChunkType.cHRM:
+                case PngChunkType.sRGB:
+                case PngChunkType.iCCP:
+                case PngChunkType.pHYs:
+                case PngChunkType.bKGD:
+                case PngChunkType.sBIT:
+                case PngChunkType.sPLT:
+                case PngChunkType.tRNS:
+                case PngChunkType.hIST:
+                    // Process other ancillary chunks
+                    SimpleLogger.Debug( "Processing misc ancillary chunk." );
+                    SimpleLogger.Info( "Processing of this chunk type is not yet implemented/not intended to be supported:", chunk.Type );
                     break;
 
                 // TODO: Add more chunk types
@@ -1168,22 +1206,49 @@ public readonly struct PngChunkType
     public static implicit operator PngChunkType( string asciiName ) => new( asciiName.ToUint32() );
     public override string ToString() => AsciiName;
 
+    // Critical chunks defined in the primary PNG specification
     public const uint IHDR = 0x49484452; // "IHDR"
     public const uint PLTE = 0x504C5445; // "PLTE"
     public const uint IDAT = 0x49444154; // "IDAT"
     public const uint IEND = 0x49454E44; // "IEND"
-    public const uint tRNS = 0x74524E53; // "tRNS"
-    public const uint gAMA = 0x67414D41; // "gAMA"
-    public const uint cHRM = 0x6348524D; // "cHRM"
-    public const uint sRGB = 0x73524742; // "sRGB"
-    public const uint iCCP = 0x69434350; // "iCCP"
-    public const uint iTXt = 0x69545874; // "iTXt"
-    public const uint tEXt = 0x74455874; // "tEXt"
-    public const uint zTXt = 0x7A545874; // "zTXt"
-    public const uint bKGD = 0x624B4744; // "bKGD"
-    public const uint pHYs = 0x70485973; // "pHYs"
-    public const uint sBIT = 0x73424954; // "sBIT"
-    public const uint sPLT = 0x73504C54; // "sPLT"
-    public const uint hIST = 0x68495354; // "hIST"
     public const uint tIME = 0x74494D45; // "tIME"
+
+
+    // Ancillary chunks defined in the primary PNG specification (canonical names)
+    public const uint cHRM = 0x6348524D; // "cHRM" (chromaticity)
+    public const uint gAMA = 0x67414D41; // "gAMA" (gamma)
+    public const uint iCCP = 0x69434350; // "iCCP" (ICC profile)
+    public const uint sBIT = 0x73424954; // "sBIT" (significant bits)
+    public const uint sRGB = 0x73524742; // "sRGB" (sRGB intent)
+    public const uint bKGD = 0x624B4744; // "bKGD" (background)
+    public const uint hIST = 0x68495354; // "hIST" (palette histogram)
+    public const uint tRNS = 0x74524E53; // "tRNS" (transparency)
+    public const uint pHYs = 0x70485973; // "pHYs" (physical pixel dimensions)
+    public const uint sPLT = 0x73504C54; // "sPLT" (suggested palette)
+    public const uint tEXt = 0x74455874; // "tEXt" (textual data)
+    public const uint zTXt = 0x7A545874; // "zTXt" (compressed text)
+    public const uint iTXt = 0x69545874; // "iTXt" (international text)
+
+    // Ancillary chunks defined in later extensions or by registrations
+    public const uint oFFs = 0x6F464673; // "oFFs" (image offset)
+    public const uint pCAL = 0x7043414C; // "pCAL" (pixel calibration)
+    public const uint sCAL = 0x7343414C; // "sCAL" (physical scale)
+    public const uint sTER = 0x73544552; // "sTER" (stereo 3-D)
+    public const uint vpAg = 0x76704167; // "vpAg" (virtual page)
+    public const uint eXIf = 0x65584966; // "eXIf" (EXIF metadata)
+    public const uint cICP = 0x63494350; // "cICP" (coding-independent code points)
+    public const uint mDCV = 0x6D444356; // "mDCV" (mastering display color volume)
+    public const uint cLLI = 0x634C4C49; // "cLLI" (content light level information)
+    public const uint dSIG = 0x64534947; // "dSIG" (digital signature)
+
+    // Animated PNG (APNG) extension chunks
+    public const uint acTL = 0x6163544C; // "acTL" (animation control)
+    public const uint fcTL = 0x6663544C; // "fcTL" (frame control)
+    public const uint fdAT = 0x66644154; // "fdAT" (frame data)
+
+    // Registered extension chunks from PNG-EXTENSIONS (W3C/IANA)
+    public const uint gIFg = 0x67494667; // "gIFg" (GIF Graphic Control extension)
+    public const uint gIFx = 0x67494678; // "gIFx" (GIF Application Extension)
+    public const uint gIFt = 0x67494674; // "gIFt" (GIF Plain Text extension) - DEPRECATED
+    public const uint fRAc = 0x66524163; // "fRAc" (fractal image parameters)
 }
