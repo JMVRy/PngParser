@@ -5,14 +5,14 @@ This is just a simple repo for me to create a PNG parsing C# project. I just wan
 
 ## Usage
 ```r
-$ PngParser.exe
-wow cool output goes here!
+$ PngParser.exe [<PNG file>] [--debug]
+(information about the PNG file outputted here)
 $
 ```
 
 ## Building
-1. Clone the repo (`git clone` or download from ZIP)
-2. Run `dotnet build`
+1. Clone the repo (`git clone https://github.com/JMVRy/PngParser.git` or download from ZIP)
+2. Run `dotnet build` or use some C# IDE
 3. Done!
 
 ## Contributing
