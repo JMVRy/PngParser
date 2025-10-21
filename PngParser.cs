@@ -342,6 +342,14 @@ static class PngParser
                     PngParser.ParseTimeChunk( chunk, ref pngData, options );
                     break;
 
+                case PngChunkType.gAMA:
+                    // Process gAMA chunk
+                    SimpleLogger.Debug( "Processing gAMA chunk." );
+                    PngParser.ParseGamaChunk( chunk, ref pngData, options );
+                    break;
+
+                // TODO: Add more chunk types
+
                 default:
                     SimpleLogger.Info( "Unknown chunk type encountered:", chunk.Type );
                     if ( ( chunk.Type & 0x20000000 ) == 0 ) // Critical chunk
@@ -735,8 +743,11 @@ static class PngParser
                 {
                     // Decompress text data
                     using MemoryStream compressedStream = new( textData );
-                    using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
-                    using StreamReader reader = new( deflateStream, System.Text.Encoding.UTF8 );
+                    SimpleLogger.Debug( "iTXt Chunk - Created memory stream for compressed data." );
+                    using ZLibStream zlibStream = new( compressedStream, CompressionMode.Decompress );
+                    SimpleLogger.Debug( "iTXt Chunk - Created zlib stream for decompression." );
+                    using StreamReader reader = new( zlibStream, System.Text.Encoding.Latin1 );
+                    SimpleLogger.Debug( "iTXt Chunk - Created stream reader for decompressed data." );
                     text = reader.ReadToEnd();
                 }
                 catch ( Exception ex )
@@ -753,9 +764,11 @@ static class PngParser
                 text = System.Text.Encoding.UTF8.GetString( textData );
             }
 
-            SimpleLogger.Debug( $"iTXt Chunk - Text: {text}" );
+            var textMetadata = new TextMetadata( keyword, text, languageTag, translatedKeyword );
 
-            pngData.TextChunks = [ .. pngData.TextChunks, ( new TextMetadata( keyword, text, languageTag, translatedKeyword ) ) ];
+            SimpleLogger.Debug( $"iTXt Chunk - Text: {( textMetadata.IsBinaryData ? BitConverter.ToString( System.Text.Encoding.Latin1.GetBytes( textMetadata.Text ) ) : textMetadata.Text )}" );
+
+            pngData.TextChunks = [ .. pngData.TextChunks, textMetadata ];
         }
         else if ( chunk.Type == PngChunkType.tEXt || chunk.Type == PngChunkType.zTXt )
         {
@@ -812,8 +825,11 @@ static class PngParser
                 try
                 {
                     using MemoryStream compressedStream = new( compressedTextData );
-                    using DeflateStream deflateStream = new( compressedStream, CompressionMode.Decompress );
-                    using StreamReader reader = new( deflateStream, System.Text.Encoding.Latin1 );
+                    SimpleLogger.Debug( "zTXt Chunk - Created memory stream for compressed data." );
+                    using ZLibStream zlibStream = new( compressedStream, CompressionMode.Decompress );
+                    SimpleLogger.Debug( "zTXt Chunk - Created zlib stream for decompression." );
+                    using StreamReader reader = new( zlibStream, System.Text.Encoding.Latin1 );
+                    SimpleLogger.Debug( "zTXt Chunk - Created stream reader for decompressed data." );
                     text = reader.ReadToEnd();
                 }
                 catch ( Exception ex )
@@ -826,9 +842,11 @@ static class PngParser
                 }
             }
 
-            SimpleLogger.Debug( $"Text Chunk - Text: {text}" );
+            var textMetadata = new TextMetadata( keyword, text );
 
-            pngData.TextChunks = [ .. pngData.TextChunks, ( new TextMetadata( keyword, text ) ) ];
+            SimpleLogger.Debug( $"Text Chunk - Text: {( textMetadata.IsBinaryData ? BitConverter.ToString( System.Text.Encoding.Latin1.GetBytes( textMetadata.Text ) ) : textMetadata.Text )}" );
+
+            pngData.TextChunks = [ .. pngData.TextChunks, textMetadata ];
         }
     }
 
@@ -856,6 +874,29 @@ static class PngParser
         );
 
         SimpleLogger.Debug( $"tIME Chunk - Last Modified: {pngData.LastModified} (UTC)" );
+    }
+
+    private static void ParseGamaChunk( PngChunk chunk, ref PngData pngData, PngParserOptions options )
+    {
+        if ( chunk.Data.Length != 4 )
+        {
+            string message = "Invalid gAMA chunk length. Must be 4 bytes.";
+            SimpleLogger.Error( message );
+            if ( options.StopAtFirstError )
+                throw new InvalidPngException( message );
+
+            return; // Can't parse incomplete gamma data
+        }
+
+        uint gammaInt;
+        if ( BitConverter.IsLittleEndian )
+            gammaInt = BitConverter.ToUInt32( [ .. chunk.Data.Reverse() ], 0 );
+        else
+            gammaInt = BitConverter.ToUInt32( chunk.Data, 0 );
+
+        pngData.Gamma = gammaInt / 100000.0;
+
+        SimpleLogger.Debug( $"gAMA Chunk - Gamma: {pngData.Gamma}" );
     }
 
     private static void VerifyPngData( PngData? pngData, PngParserOptions options )
@@ -1009,6 +1050,8 @@ public class PngData
 
     public bool ParsedPalette => Palette != null && Palette.Length > 0;
     public bool ParsedImageData => ImageData != null && ImageData.Length > 0;
+
+    public double Gamma { get; set; }
 }
 
 public struct Color( ushort r, ushort g, ushort b, ushort a = 255 )
@@ -1021,8 +1064,24 @@ public struct Color( ushort r, ushort g, ushort b, ushort a = 255 )
 
 public struct TextMetadata( string keyword, string text, string languageTag = "", string translatedKeyword = "" )
 {
+    private static readonly string[] BinaryKeywordPrefixes =
+    [
+        "Raw profile type ", "Raw ICC profile", "XML:com.adobe.xmp",
+        "EXIF", "Photoshop", "Adobe Photoshop", "Preview", "Thumbnail",
+        "XMP", // ... add more where necessary
+    ];
+
     public string Keyword = keyword;
     public string Text = text;
+    public readonly bool IsBinaryData
+    {
+        get
+        {
+            var keywordLocal = Keyword;
+            return BinaryKeywordPrefixes.Any( prefix => keywordLocal.StartsWith( prefix, StringComparison.OrdinalIgnoreCase ) )
+                || ( !string.IsNullOrWhiteSpace( Text ) && Text.Any( c => char.IsControl( c ) && c != '\r' && c != '\n' && c != '\t' ) );
+        }
+    }
     public string? LanguageTag = languageTag;
     public string? TranslatedKeyword = translatedKeyword;
 }

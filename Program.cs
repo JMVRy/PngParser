@@ -54,7 +54,14 @@ class Program
 
                 foreach ( var textChunk in pngData.TextChunks )
                 {
-                    SimpleLogger.Info( $"Text Chunk - Keyword: \"{textChunk.Keyword}\", Text: \"{textChunk.Text}\", Language Tag: \"{textChunk.LanguageTag}\", Translated Keyword: \"{textChunk.TranslatedKeyword}\"" );
+                    if ( textChunk.IsBinaryData )
+                    {
+                        SimpleLogger.Info( $"Text Chunk - Keyword: \"{textChunk.Keyword}\", Text (binary data): {BitConverter.ToString( System.Text.Encoding.Latin1.GetBytes( textChunk.Text ) )}, Language Tag: \"{textChunk.LanguageTag}\", Translated Keyword: \"{textChunk.TranslatedKeyword}\"" );
+                    }
+                    else
+                    {
+                        SimpleLogger.Info( $"Text Chunk - Keyword: \"{textChunk.Keyword}\", Text: \"{textChunk.Text}\", Language Tag: \"{textChunk.LanguageTag}\", Translated Keyword: \"{textChunk.TranslatedKeyword}\"" );
+                    }
                 }
             }
             catch ( Exception ex )
